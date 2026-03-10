@@ -1,0 +1,278 @@
+{
+  "name": "Visa Application Assistant — Phase 1",
+  "nodes": [
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "node_chat_trigger",
+      "name": "Chat Trigger",
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.1,
+      "position": [240, 300],
+      "webhookId": "visa-agent-chat"
+    },
+    {
+      "parameters": {
+        "options": {
+          "systemMessage": "You are a friendly and professional visa application assistant specialising in UK and Schengen visas.\n\nYour job is to conduct a conversational interview to collect the following information from the user:\n1. Their nationality (passport country)\n2. Their country of residence (where they currently live and will apply from)\n3. Their destination country (where they want to travel)\n4. The purpose of their visit (Tourism, Business, Visiting family/friends, Study, Medical)\n5. Approximate travel dates or duration\n6. Number of travellers\n7. Whether they have held a UK or Schengen visa before\n8. Whether they have ever been refused a visa\n9. Their employment status\n\nIMPORTANT RULES:\n- Ask questions one or two at a time — do NOT dump all questions at once\n- Be warm, conversational, and reassuring\n- If the destination is a Schengen country, ask which specific country they plan to spend the most time in\n- Once you have ALL required information, output a JSON block with the key \"profile_complete\": true and the full profile\n- The JSON must be wrapped in ```json ... ``` code fences\n- The \"visa_target\" field must be either \"uk\" or \"schengen\"\n\nSchengen countries: Austria, Belgium, Czech Republic, Denmark, Estonia, Finland, France, Germany, Greece, Hungary, Iceland, Italy, Latvia, Liechtenstein, Lithuania, Luxembourg, Malta, Netherlands, Norway, Poland, Portugal, Slovakia, Slovenia, Spain, Sweden, Switzerland.\n\nBegin by greeting the user and asking for their nationality and destination."
+        }
+      },
+      "id": "node_intake_agent",
+      "name": "Intake Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [480, 300]
+    },
+    {
+      "parameters": {
+        "model": "gpt-4o-mini",
+        "options": {
+          "temperature": 0.3
+        }
+      },
+      "id": "node_intake_llm",
+      "name": "Intake LLM (GPT-4o-mini)",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [480, 500],
+      "credentials": {
+        "openAiApi": {
+          "id": "openai_credential",
+          "name": "OpenAI API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract the applicant profile JSON from the Intake Agent's output\nconst intakeOutput = $input.first().json.output || '';\n\nlet profile = null;\ntry {\n  const jsonMatch = intakeOutput.match(/```json([\\s\\S]*?)```/);\n  if (jsonMatch) {\n    profile = JSON.parse(jsonMatch[1].trim());\n  }\n} catch (e) {\n  // Profile not yet complete — continue conversation\n}\n\nreturn [{\n  json: {\n    intake_output: intakeOutput,\n    profile: profile,\n    profile_complete: profile?.profile_complete === true\n  }\n}];"
+      },
+      "id": "node_extract_profile",
+      "name": "Extract Applicant Profile",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [720, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "cond_profile_complete",
+              "leftValue": "={{ $json.profile_complete }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equal"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "node_profile_check",
+      "name": "Profile Complete?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [960, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Load visa requirements from the knowledge base based on visa_target\nconst profile = $input.first().json.profile;\n\nconst UK_REQUIREMENTS = {\n  visa_type: 'UK Standard Visitor Visa',\n  authority: 'UK Visas and Immigration (UKVI)',\n  apply_url: 'https://www.gov.uk/standard-visitor/apply-standard-visitor-visa',\n  info_url: 'https://www.gov.uk/standard-visitor',\n  fee: '£115 (standard processing)',\n  processing_time: '3 weeks standard, 5 days priority (+£250), 24h super priority (+£800)',\n  max_stay: 'Up to 180 days',\n  required_documents: [\n    { id: 1, document: 'Valid passport', details: 'Must be valid for the duration of your stay.', mandatory: true },\n    { id: 2, document: 'Completed online application (VAF1A)', details: 'Apply online at gov.uk. Bring your reference number to the appointment.', mandatory: true },\n    { id: 3, document: 'Biometric enrolment', details: 'Fingerprints and photo at a Visa Application Centre.', mandatory: true },\n    { id: 4, document: 'Bank statements (last 3–6 months)', details: 'Demonstrates financial ability to support yourself. Typically £1,000+ for a 2-week trip.', mandatory: true },\n    { id: 5, document: 'Proof of accommodation', details: 'Hotel bookings, Airbnb, or invitation letter from host.', mandatory: true },\n    { id: 6, document: 'Return flight itinerary', details: 'Confirmed or provisional booking showing entry and exit dates.', mandatory: true },\n    { id: 7, document: 'Proof of employment or study', details: 'Employment letter with position, salary, and approved leave. Or enrollment letter.', mandatory: true },\n    { id: 8, document: 'Travel history evidence', details: 'Previous visas (UK, US, Schengen) strengthen your application.', mandatory: false },\n    { id: 9, document: 'Invitation letter (if visiting family/friends)', details: 'From your UK host with address, immigration status, and relationship.', mandatory: false },\n    { id: 10, document: 'Travel insurance', details: 'Not mandatory but strongly recommended.', mandatory: false }\n  ],\n  application_steps: [\n    'Complete the online application form at gov.uk/standard-visitor/apply-standard-visitor-visa',\n    'Pay the visa fee (£115 for standard processing)',\n    'Book a biometric appointment at your nearest UK Visa Application Centre (VFS Global or TLScontact)',\n    'Gather all required documents',\n    'Attend your biometric appointment with all documents',\n    'Track your application online using your reference number',\n    'Collect your passport or receive it by post'\n  ],\n  key_notes: [\n    'You must apply from your country of residence',\n    'UKVI assesses your intention to leave the UK at the end of your visit',\n    'Strong ties to your home country significantly improve approval chances',\n    'Do NOT book non-refundable flights before your visa is approved'\n  ],\n  vac_providers: {\n    'VFS Global': 'https://www.vfsglobal.com/en/individuals/index.html',\n    'TLScontact': 'https://www.tlscontact.com/gb/'\n  }\n};\n\nconst SCHENGEN_REQUIREMENTS = {\n  visa_type: 'Schengen Short-Stay Visa (Type C)',\n  authority: 'Embassy of the destination Schengen country',\n  apply_url: 'https://home-affairs.ec.europa.eu/policies/schengen/visa-policy/applying-schengen-visa_en',\n  info_url: 'https://ec.europa.eu/home-affairs/policies/schengen/visa-policy_en',\n  fee: '€90 per adult (children 6–12: €45, under 6: free)',\n  processing_time: '15 calendar days standard, up to 45 days in complex cases',\n  max_stay: 'Up to 90 days within any 180-day period',\n  which_embassy: 'Apply at the embassy of the country where you will spend the most days.',\n  required_documents: [\n    { id: 1, document: 'Valid passport', details: 'Valid for at least 3 months beyond your departure from Schengen. Issued within last 10 years. At least 2 blank pages.', mandatory: true },\n    { id: 2, document: 'Completed Schengen visa application form', details: 'Signed by applicant. Available from embassy or VAC website.', mandatory: true },\n    { id: 3, document: '2 recent passport-sized photos', details: '35×45mm, white background, taken within last 6 months. ICAO biometric standards.', mandatory: true },\n    { id: 4, document: 'Travel medical insurance', details: 'Minimum €30,000 coverage. Valid for entire Schengen Area and full duration of stay.', mandatory: true },\n    { id: 5, document: 'Round-trip flight reservation', details: 'Confirmed or provisional booking. Do NOT buy non-refundable tickets before approval.', mandatory: true },\n    { id: 6, document: 'Proof of accommodation', details: 'Hotel bookings, Airbnb, or host invitation letter.', mandatory: true },\n    { id: 7, document: 'Proof of financial means', details: 'Bank statements (last 3–6 months). Minimum €50–€100 per day depending on country.', mandatory: true },\n    { id: 8, document: 'Proof of employment or study', details: 'Employment letter or enrollment letter. Self-employed: business registration + tax returns.', mandatory: true },\n    { id: 9, document: 'Cover letter', details: 'Explaining purpose of trip, itinerary, and confirmation you will return home.', mandatory: false },\n    { id: 10, document: 'Proof of ties to home country', details: 'Property ownership, family ties, permanent employment. Strengthens your application.', mandatory: false },\n    { id: 11, document: 'Previous Schengen/UK/US visas', details: 'Copies of previously granted visas demonstrate travel history.', mandatory: false },\n    { id: 12, document: 'Invitation letter (if visiting family/friends)', details: 'From host with address, contact, and copy of their ID or residence permit.', mandatory: false }\n  ],\n  application_steps: [\n    'Determine which Schengen country embassy to apply to (country of longest stay, or first entry if equal)',\n    'Book an appointment at the relevant embassy or Visa Application Centre (VFS Global / TLScontact / BLS International)',\n    'Complete the Schengen visa application form',\n    'Gather all required documents',\n    'Pay the visa fee (€90 for adults)',\n    'Attend your appointment with all original documents',\n    'Track your application status',\n    'Collect your passport with the visa sticker'\n  ],\n  key_notes: [\n    'You can only stay 90 days in any 180-day rolling period across ALL Schengen countries combined',\n    'Apply no earlier than 6 months before your trip and no later than 15 working days before',\n    'Biometrics (fingerprints + photo) are collected at the Visa Application Centre',\n    'A Schengen visa does NOT guarantee entry — border officers have final authority'\n  ],\n  vac_providers: {\n    'VFS Global': 'https://www.vfsglobal.com/en/individuals/index.html',\n    'TLScontact': 'https://www.tlscontact.com/',\n    'BLS International': 'https://blsinternational.com/'\n  }\n};\n\nconst requirements = profile.visa_target === 'uk' ? UK_REQUIREMENTS : SCHENGEN_REQUIREMENTS;\n\nreturn [{\n  json: {\n    profile: profile,\n    requirements: requirements\n  }\n}];"
+      },
+      "id": "node_load_requirements",
+      "name": "Load Visa Requirements",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1200, 180]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are a specialist visa research assistant.\n\nApplicant Profile:\n- Nationality: {{ $json.profile.nationality }}\n- Country of Residence: {{ $json.profile.country_of_residence }}\n- Destination: {{ $json.profile.destination_country }}\n- Purpose: {{ $json.profile.purpose_of_visit }}\n- Employment Status: {{ $json.profile.employment_status || 'Not specified' }}\n- Previous UK Visa: {{ $json.profile.has_previous_uk_visa }}\n- Previous Schengen Visa: {{ $json.profile.has_previous_schengen_visa }}\n- Previous Refusal: {{ $json.profile.has_previous_refusal }}\n- Visa Type: {{ $json.requirements.visa_type }}\n\nBase requirements are already covered. Please provide nationality and situation-specific supplementary research.\n\nRespond in JSON format:\n{\n  \"nationality_specific_notes\": [\"...\"],\n  \"residence_specific_notes\": [\"...\"],\n  \"situation_flags\": [\"...\"],\n  \"practical_tips\": [\"...\"],\n  \"recommended_sources\": [{\"title\": \"...\", \"url\": \"...\"}]\n}",
+        "options": {
+          "systemMessage": "You are a specialist visa research assistant with deep knowledge of UK and Schengen visa requirements. Provide nationality and situation-specific supplementary research notes. Always respond in valid JSON format."
+        }
+      },
+      "id": "node_research_agent",
+      "name": "Research Agent",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.4,
+      "position": [1440, 180]
+    },
+    {
+      "parameters": {
+        "model": "gpt-4o-mini",
+        "options": {
+          "temperature": 0.3
+        }
+      },
+      "id": "node_research_llm",
+      "name": "Research LLM (GPT-4o-mini)",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [1440, 380],
+      "credentials": {
+        "openAiApi": {
+          "id": "openai_credential",
+          "name": "OpenAI API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse the Research Agent's supplementary notes\nconst researchOutput = $input.first().json.text || '';\nconst profile = $('Load Visa Requirements').first().json.profile;\nconst requirements = $('Load Visa Requirements').first().json.requirements;\n\nlet supplementaryData = {};\ntry {\n  const jsonMatch = researchOutput.match(/```json([\\s\\S]*?)```/);\n  const jsonStr = jsonMatch ? jsonMatch[1].trim() : researchOutput.trim();\n  supplementaryData = JSON.parse(jsonStr);\n} catch (e) {\n  supplementaryData = { practical_tips: [researchOutput] };\n}\n\nreturn [{\n  json: {\n    profile: profile,\n    requirements: requirements,\n    supplementary: supplementaryData\n  }\n}];"
+      },
+      "id": "node_parse_research",
+      "name": "Parse Research Output",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1680, 180]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are a senior visa consultant producing a clear, actionable visa requirements report.\n\nApplicant:\n- Nationality: {{ $json.profile.nationality }}\n- Residence: {{ $json.profile.country_of_residence }}\n- Destination: {{ $json.profile.destination_country }}\n- Purpose: {{ $json.profile.purpose_of_visit }}\n- Schengen Main Country: {{ $json.profile.schengen_main_country || 'N/A' }}\n- Visa Type: {{ $json.requirements.visa_type }}\n\nSupplementary Research:\n{{ JSON.stringify($json.supplementary, null, 2) }}\n\nProduce a concise executive summary (3–4 sentences) and embassy guidance if applicable.\n\nRespond in JSON format:\n{\n  \"executive_summary\": \"...\",\n  \"embassy_guidance\": \"...\",\n  \"eta_eligible\": false,\n  \"eta_note\": null,\n  \"priority_flags\": [\"...\"]\n}",
+        "options": {
+          "systemMessage": "You are a senior visa consultant. Produce a concise, professional executive summary and any relevant embassy guidance. Always respond in valid JSON format."
+        }
+      },
+      "id": "node_analysis_agent",
+      "name": "Analysis Agent",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.4,
+      "position": [1920, 180]
+    },
+    {
+      "parameters": {
+        "model": "gpt-4o-mini",
+        "options": {
+          "temperature": 0.3
+        }
+      },
+      "id": "node_analysis_llm",
+      "name": "Analysis LLM (GPT-4o-mini)",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [1920, 380],
+      "credentials": {
+        "openAiApi": {
+          "id": "openai_credential",
+          "name": "OpenAI API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Assemble the final visa requirements report as Markdown\nconst analysisOutput = $input.first().json.text || '';\nconst profile = $('Parse Research Output').first().json.profile;\nconst requirements = $('Parse Research Output').first().json.requirements;\nconst supplementary = $('Parse Research Output').first().json.supplementary;\n\nlet analysis = {};\ntry {\n  const jsonMatch = analysisOutput.match(/```json([\\s\\S]*?)```/);\n  const jsonStr = jsonMatch ? jsonMatch[1].trim() : analysisOutput.trim();\n  analysis = JSON.parse(jsonStr);\n} catch (e) {\n  analysis = { executive_summary: analysisOutput };\n}\n\n// Build Markdown report\nconst mandatoryDocs = requirements.required_documents.filter(d => d.mandatory);\nconst optionalDocs = requirements.required_documents.filter(d => !d.mandatory);\n\nlet report = `# ${requirements.visa_type} — Requirements Report\\n\\n`;\nreport += `**Applicant:** ${profile.nationality} national, residing in ${profile.country_of_residence}\\n`;\nreport += `**Destination:** ${profile.destination_country}${profile.schengen_main_country ? ` (${profile.schengen_main_country})` : ''}\\n`;\nreport += `**Purpose:** ${profile.purpose_of_visit}\\n\\n`;\nreport += `---\\n\\n`;\n\nif (analysis.executive_summary) {\n  report += `## Summary\\n${analysis.executive_summary}\\n\\n`;\n}\n\nif (analysis.embassy_guidance) {\n  report += `## 🏛️ Embassy Selection\\n${analysis.embassy_guidance}\\n\\n`;\n}\n\nreport += `## Visa Details\\n`;\nreport += `- **Fee:** ${requirements.fee}\\n`;\nreport += `- **Processing Time:** ${requirements.processing_time}\\n`;\nreport += `- **Maximum Stay:** ${requirements.max_stay}\\n`;\nreport += `- **Apply Online:** ${requirements.apply_url}\\n\\n`;\n\nreport += `## ✅ Required Documents\\n`;\nmandatoryDocs.forEach(doc => {\n  report += `- **${doc.document}:** ${doc.details}\\n`;\n});\n\nif (optionalDocs.length > 0) {\n  report += `\\n## ⭐ Recommended Documents\\n`;\n  optionalDocs.forEach(doc => {\n    report += `- **${doc.document}:** ${doc.details}\\n`;\n  });\n}\n\nreport += `\\n## 📋 Application Steps\\n`;\nrequirements.application_steps.forEach((step, i) => {\n  report += `${i + 1}. ${step}\\n`;\n});\n\nif (supplementary.nationality_specific_notes?.length) {\n  report += `\\n## 🔍 Nationality-Specific Notes\\n`;\n  supplementary.nationality_specific_notes.forEach(n => { report += `- ${n}\\n`; });\n}\n\nif (supplementary.situation_flags?.length) {\n  report += `\\n## ⚠️ Important Flags\\n`;\n  supplementary.situation_flags.forEach(f => { report += `- ${f}\\n`; });\n}\n\nif (supplementary.practical_tips?.length) {\n  report += `\\n## 💡 Practical Tips\\n`;\n  supplementary.practical_tips.forEach(t => { report += `- ${t}\\n`; });\n}\n\nreport += `\\n## ⚠️ Key Notes\\n`;\nrequirements.key_notes.forEach(note => { report += `- ${note}\\n`; });\n\nreport += `\\n## 🔗 Official Sources\\n`;\nconst sources = [\n  { title: `Official ${requirements.visa_type} Information`, url: requirements.info_url },\n  { title: 'Apply Online', url: requirements.apply_url },\n  ...Object.entries(requirements.vac_providers || {}).map(([name, url]) => ({ title: `VAC — ${name}`, url }))\n];\nsources.forEach(s => { if (s.url) report += `- [${s.title}](${s.url})\\n`; });\n\nif (supplementary.recommended_sources?.length) {\n  supplementary.recommended_sources.forEach(s => { report += `- [${s.title}](${s.url})\\n`; });\n}\n\nreport += `\\n---\\n*Generated by Visa Application Multi-Agent System — Phase 1 (n8n)*`;\n\nreturn [{\n  json: {\n    report_markdown: report,\n    visa_type: requirements.visa_type,\n    applicant_nationality: profile.nationality,\n    destination: profile.destination_country,\n    executive_summary: analysis.executive_summary || '',\n    embassy_guidance: analysis.embassy_guidance || null,\n    priority_flags: analysis.priority_flags || []\n  }\n}];"
+      },
+      "id": "node_build_report",
+      "name": "Build Final Report",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2160, 180]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ report: $json.report_markdown, visa_type: $json.visa_type, destination: $json.destination, executive_summary: $json.executive_summary }) }}",
+        "options": {}
+      },
+      "id": "node_respond",
+      "name": "Return Report to Chat",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [2400, 180]
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "={{ $('Intake Agent').first().json.output }}",
+        "options": {}
+      },
+      "id": "node_continue_chat",
+      "name": "Continue Conversation",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1200, 420]
+    }
+  ],
+  "connections": {
+    "Chat Trigger": {
+      "main": [
+        [{ "node": "Intake Agent", "type": "main", "index": 0 }]
+      ]
+    },
+    "Intake Agent": {
+      "main": [
+        [{ "node": "Extract Applicant Profile", "type": "main", "index": 0 }]
+      ]
+    },
+    "Intake LLM (GPT-4o-mini)": {
+      "ai_languageModel": [
+        [{ "node": "Intake Agent", "type": "ai_languageModel", "index": 0 }]
+      ]
+    },
+    "Extract Applicant Profile": {
+      "main": [
+        [{ "node": "Profile Complete?", "type": "main", "index": 0 }]
+      ]
+    },
+    "Profile Complete?": {
+      "main": [
+        [{ "node": "Load Visa Requirements", "type": "main", "index": 0 }],
+        [{ "node": "Continue Conversation", "type": "main", "index": 0 }]
+      ]
+    },
+    "Load Visa Requirements": {
+      "main": [
+        [{ "node": "Research Agent", "type": "main", "index": 0 }]
+      ]
+    },
+    "Research Agent": {
+      "main": [
+        [{ "node": "Parse Research Output", "type": "main", "index": 0 }]
+      ]
+    },
+    "Research LLM (GPT-4o-mini)": {
+      "ai_languageModel": [
+        [{ "node": "Research Agent", "type": "ai_languageModel", "index": 0 }]
+      ]
+    },
+    "Parse Research Output": {
+      "main": [
+        [{ "node": "Analysis Agent", "type": "main", "index": 0 }]
+      ]
+    },
+    "Analysis Agent": {
+      "main": [
+        [{ "node": "Build Final Report", "type": "main", "index": 0 }]
+      ]
+    },
+    "Analysis LLM (GPT-4o-mini)": {
+      "ai_languageModel": [
+        [{ "node": "Analysis Agent", "type": "ai_languageModel", "index": 0 }]
+      ]
+    },
+    "Build Final Report": {
+      "main": [
+        [{ "node": "Return Report to Chat", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": ["visa", "multi-agent", "phase-1"],
+  "triggerCount": 1,
+  "updatedAt": "2026-03-10T00:00:00.000Z",
+  "versionId": "visa-agent-phase1-v1"
+}

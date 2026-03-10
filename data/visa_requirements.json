@@ -1,0 +1,222 @@
+{
+  "uk": {
+    "standard_visitor": {
+      "visa_type": "UK Standard Visitor Visa",
+      "authority": "UK Visas and Immigration (UKVI)",
+      "apply_url": "https://www.gov.uk/standard-visitor/apply-standard-visitor-visa",
+      "info_url": "https://www.gov.uk/standard-visitor",
+      "fee_gbp": 115,
+      "processing_days": "3 weeks (standard), 5 days (priority +£250), 24h (super priority +£800)",
+      "max_stay_days": 180,
+      "validity": "Up to 10 years (multiple entry)",
+      "purposes": ["Tourism", "Visiting family/friends", "Business meetings", "Short study (up to 6 months)", "Medical treatment"],
+      "required_documents": [
+        {
+          "id": 1,
+          "document": "Valid passport",
+          "details": "Must be valid for the duration of your stay. Include all previous passports if available.",
+          "mandatory": true
+        },
+        {
+          "id": 2,
+          "document": "Completed online application (VAF1A)",
+          "details": "Apply online at gov.uk. You will receive a reference number to bring to your appointment.",
+          "mandatory": true
+        },
+        {
+          "id": 3,
+          "document": "Biometric enrolment",
+          "details": "You must attend a Visa Application Centre (VAC) to give fingerprints and a photo.",
+          "mandatory": true
+        },
+        {
+          "id": 4,
+          "document": "Bank statements (last 3–6 months)",
+          "details": "Shows you can financially support yourself. Minimum balance varies; typically £1,000+ recommended for a 2-week trip.",
+          "mandatory": true
+        },
+        {
+          "id": 5,
+          "document": "Proof of accommodation",
+          "details": "Hotel bookings, Airbnb confirmation, or invitation letter from host with their address and contact details.",
+          "mandatory": true
+        },
+        {
+          "id": 6,
+          "document": "Return flight itinerary",
+          "details": "Confirmed or provisional flight booking showing entry and exit dates.",
+          "mandatory": true
+        },
+        {
+          "id": 7,
+          "document": "Proof of employment or study",
+          "details": "Employment letter stating your position, salary, and approved leave. Or enrollment letter from school/university.",
+          "mandatory": true
+        },
+        {
+          "id": 8,
+          "document": "Travel history evidence",
+          "details": "Previous visas (especially UK, US, Schengen) strengthen your application. Include copies of relevant pages.",
+          "mandatory": false
+        },
+        {
+          "id": 9,
+          "document": "Invitation letter (if visiting family/friends)",
+          "details": "From your UK host, including their address, immigration status, and relationship to you.",
+          "mandatory": false
+        },
+        {
+          "id": 10,
+          "document": "Travel insurance",
+          "details": "Not mandatory but strongly recommended. Should cover the full duration of stay.",
+          "mandatory": false
+        }
+      ],
+      "application_steps": [
+        "Step 1: Complete the online application form at gov.uk/standard-visitor/apply-standard-visitor-visa",
+        "Step 2: Pay the visa fee (£115 for standard processing)",
+        "Step 3: Book a biometric appointment at your nearest UK Visa Application Centre (VFS Global or TLScontact)",
+        "Step 4: Gather all required documents",
+        "Step 5: Attend your biometric appointment with all documents",
+        "Step 6: Track your application online using your reference number",
+        "Step 7: Collect your passport (or receive it by post)"
+      ],
+      "vac_providers": {
+        "VFS Global": "https://www.vfsglobal.com/en/individuals/index.html",
+        "TLScontact": "https://www.tlscontact.com/gb/"
+      },
+      "key_notes": [
+        "You must apply from your country of residence, not your nationality country",
+        "UKVI assesses your intention to leave the UK at the end of your visit",
+        "Strong ties to your home country (job, family, property) significantly improve approval chances",
+        "Do NOT book non-refundable flights before your visa is approved",
+        "Nationals of some countries may be eligible for Electronic Travel Authorisation (ETA) instead"
+      ],
+      "etas_eligible": ["USA", "Canada", "Australia", "New Zealand", "Japan", "South Korea", "Singapore", "UAE", "Qatar", "Kuwait", "Bahrain", "Oman", "Saudi Arabia", "Jordan"]
+    }
+  },
+  "schengen": {
+    "short_stay_c": {
+      "visa_type": "Schengen Short-Stay Visa (Type C)",
+      "authority": "Embassy of the destination Schengen country",
+      "apply_url": "https://home-affairs.ec.europa.eu/policies/schengen/visa-policy/applying-schengen-visa_en",
+      "info_url": "https://home-affairs.ec.europa.eu/policies/schengen/visa-policy_en",
+      "fee_eur": 90,
+      "fee_eur_children_6_12": 45,
+      "fee_eur_children_under_6": 0,
+      "processing_days": "15 calendar days (standard), up to 45 days in complex cases",
+      "max_stay_days": 90,
+      "validity": "Up to 90 days within any 180-day period",
+      "purposes": ["Tourism", "Visiting family/friends", "Business", "Short study/training", "Transit"],
+      "which_embassy": "Apply at the embassy of the country where you will spend the most days. If equal time, apply at the country of first entry.",
+      "required_documents": [
+        {
+          "id": 1,
+          "document": "Valid passport",
+          "details": "Must be valid for at least 3 months beyond your intended departure from the Schengen Area. Must have been issued within the last 10 years. Must have at least 2 blank pages.",
+          "mandatory": true
+        },
+        {
+          "id": 2,
+          "document": "Completed Schengen visa application form",
+          "details": "Signed by the applicant. Available from the embassy website or VFS Global/TLScontact.",
+          "mandatory": true
+        },
+        {
+          "id": 3,
+          "document": "2 recent passport-sized photos",
+          "details": "35×45mm, white background, taken within the last 6 months. Must comply with ICAO biometric standards.",
+          "mandatory": true
+        },
+        {
+          "id": 4,
+          "document": "Travel medical insurance",
+          "details": "Minimum coverage of €30,000. Must be valid for the entire Schengen Area and the full duration of stay. Must cover medical emergency and repatriation.",
+          "mandatory": true
+        },
+        {
+          "id": 5,
+          "document": "Round-trip flight reservation",
+          "details": "Confirmed or provisional booking showing entry and exit dates. Do NOT purchase non-refundable tickets before visa approval.",
+          "mandatory": true
+        },
+        {
+          "id": 6,
+          "document": "Proof of accommodation",
+          "details": "Hotel bookings, Airbnb confirmation, or invitation letter from host (with their address, contact, and copy of their ID/residence permit).",
+          "mandatory": true
+        },
+        {
+          "id": 7,
+          "document": "Proof of financial means",
+          "details": "Bank statements for the last 3–6 months. Minimum recommended: €50–€100 per day of stay depending on the country. Some countries accept a sponsor's financial guarantee.",
+          "mandatory": true
+        },
+        {
+          "id": 8,
+          "document": "Proof of employment or study",
+          "details": "Employment letter (position, salary, approved leave dates) or enrollment letter. Self-employed: business registration + tax returns.",
+          "mandatory": true
+        },
+        {
+          "id": 9,
+          "document": "Cover letter",
+          "details": "Explaining the purpose of your trip, itinerary, and confirmation that you will return home.",
+          "mandatory": false
+        },
+        {
+          "id": 10,
+          "document": "Proof of ties to home country",
+          "details": "Property ownership, family ties, permanent employment contract. Strengthens your application.",
+          "mandatory": false
+        },
+        {
+          "id": 11,
+          "document": "Previous Schengen/UK/US visas",
+          "details": "Copies of previously granted visas demonstrate travel history and improve approval chances.",
+          "mandatory": false
+        },
+        {
+          "id": 12,
+          "document": "Invitation letter (if visiting family/friends)",
+          "details": "From your host in the Schengen country, with their address, contact, and copy of their ID or residence permit.",
+          "mandatory": false
+        }
+      ],
+      "application_steps": [
+        "Step 1: Determine which Schengen country's embassy to apply to (country of longest stay, or first entry if equal)",
+        "Step 2: Book an appointment at the relevant embassy or Visa Application Centre (VFS Global / TLScontact / BLS International)",
+        "Step 3: Complete the Schengen visa application form",
+        "Step 4: Gather all required documents",
+        "Step 5: Pay the visa fee (€90 for adults)",
+        "Step 6: Attend your appointment with all original documents",
+        "Step 7: Track your application status",
+        "Step 8: Collect your passport with the visa sticker"
+      ],
+      "vac_providers": {
+        "VFS Global": "https://www.vfsglobal.com/en/individuals/index.html",
+        "TLScontact": "https://www.tlscontact.com/",
+        "BLS International": "https://blsinternational.com/"
+      },
+      "country_specific_links": {
+        "France": "https://france-visas.gouv.fr/en/web/france-visas/",
+        "Germany": "https://www.auswaertiges-amt.de/en/visa-service",
+        "Italy": "https://vistoperitalia.esteri.it/home/en",
+        "Spain": "https://www.exteriores.gob.es/en/ServiciosAlCiudadano/Paginas/Visados.aspx",
+        "Netherlands": "https://www.netherlandsworldwide.nl/visa-the-netherlands",
+        "Greece": "https://www.mfa.gr/en/visas/",
+        "Portugal": "https://vistos.mne.gov.pt/en/",
+        "Belgium": "https://dofi.ibz.be/en/themes/visa",
+        "Switzerland": "https://www.sem.admin.ch/sem/en/home/themen/einreise.html",
+        "Austria": "https://www.bmeia.gv.at/en/travel-stay/entry-and-residence-in-austria/entry-to-austria/visa/"
+      },
+      "key_notes": [
+        "You can only stay 90 days in any 180-day rolling period across ALL Schengen countries combined",
+        "Apply no earlier than 6 months before your trip and no later than 15 working days before",
+        "Biometrics (fingerprints + photo) are collected at the Visa Application Centre",
+        "Some nationalities may need to apply directly at the embassy, not a VAC",
+        "A Schengen visa does NOT guarantee entry — border officers have final authority"
+      ]
+    }
+  }
+}
