@@ -1,0 +1,13 @@
+{
+  "eval_id": "eval_69bac7c3c7948191b3db3a49b552b8d0",
+  "file_ids": {
+    "intake": "file-7iMVh372Ngv1wpa6ETXMDe",
+    "research": "file-DGjMWUouy7t9RkydtZWYFK",
+    "analysis": "file-5F24PWugmnaq4Q8qDwzH61"
+  },
+  "run_ids": {
+    "intake": "evalrun_69bac7c8f5788191922a17a2c15b9516",
+    "research": "evalrun_69bac7c99c70819186063471fe30fa4a",
+    "analysis": "evalrun_69bac7ca446c81918b6500541a9c5c34"
+  }
+}
