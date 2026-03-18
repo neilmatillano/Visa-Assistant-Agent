@@ -13,6 +13,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 
 from agents.orchestrator import VisaOrchestrator, PipelineStage
 from agents.analysis_agent import VisaReport
+from agents.tracker import generate_ics, build_tracker_pdf, STATUS_ICONS, STATUS_LABELS, ItemStatus, ItemType
 import database as db
 
 
@@ -584,10 +585,20 @@ def init_session():
         "api_key": "",
         "pipeline_running": False,
         "active_tab": 0,
-        "saved_app_id": None,       # DB row id after save
-        "view_app_id": None,        # History: which app to view
-        "page": "app",              # 'app' | 'history'
-        "agent_typing": False,      # Typing indicator for Intake chat
+        "saved_app_id": None,
+        "view_app_id": None,
+        "page": "app",
+        "agent_typing": False,
+        # Phase 2 tracker
+        "tracker_items": [],
+        "tracker_refresh": 0,
+        "appt_date": "",
+        "appt_time": "",
+        "appt_location": "",
+        "appt_ref": "",
+        "appt_portal_name": "",
+        "appt_portal_url": "",
+        "appt_saved": False,
     }
     for k, v in defaults.items():
         if k not in st.session_state:
@@ -921,6 +932,106 @@ def render_report(report: VisaReport, key_prefix: str = "main"):
             links_html += f'<a class="source-link" href="{src["url"]}" target="_blank">↗ {src["title"]}</a>'
     st.markdown(links_html + "<br><br>", unsafe_allow_html=True)
 
+    # ── Phase 2: Application Forms ───────────────────────────────────────────
+    if getattr(report, "forms", None):
+        st.markdown("<hr>", unsafe_allow_html=True)
+        st.markdown('<div class="section-label">📄 Application Forms</div>', unsafe_allow_html=True)
+        mandatory_forms = [f for f in report.forms if f.mandatory]
+        optional_forms  = [f for f in report.forms if not f.mandatory]
+        for fm in mandatory_forms:
+            col_info, col_btn = st.columns([0.72, 0.28])
+            with col_info:
+                st.markdown(
+                    f'<div style="padding:10px 0;">'
+                    f'<span style="font-size:.88rem;font-weight:600;color:var(--text-primary);">✅ {fm.title}</span><br>'
+                    f'<span style="font-size:.8rem;color:var(--text-secondary);">{fm.description}</span>'
+                    f'{f'<br><span style="font-size:.78rem;color:var(--text-muted);">💡 {fm.notes}</span>' if fm.notes else ""}'
+                    f'</div>',
+                    unsafe_allow_html=True,
+                )
+            with col_btn:
+                st.markdown(
+                    f'<a href="{fm.url}" target="_blank" class="source-link" '
+                    f'style="display:inline-flex;margin-top:12px;padding:8px 14px;font-weight:600;">'
+                    f'↗ {fm.format}</a>',
+                    unsafe_allow_html=True,
+                )
+        if optional_forms:
+            with st.expander("⭐ Optional / alternative forms"):
+                for fm in optional_forms:
+                    st.markdown(
+                        f'<div style="padding:6px 0;border-bottom:1px solid var(--border-light);">'
+                        f'<a class="source-link" href="{fm.url}" target="_blank">↗ {fm.title}</a>'
+                        f'<span style="font-size:.8rem;color:var(--text-secondary);margin-left:8px;">{fm.description}</span>'
+                        f'</div>',
+                        unsafe_allow_html=True,
+                    )
+
+    # ── Phase 2: Document Upload Portal ───────────────────────────────────────
+    if getattr(report, "upload_portal", None):
+        p = report.upload_portal
+        st.markdown("<hr>", unsafe_allow_html=True)
+        st.markdown('<div class="section-label">☁️ Document Upload Portal</div>', unsafe_allow_html=True)
+        st.markdown(
+            f'<div style="background:var(--bg-raised);border:1px solid var(--border);'
+            f'border-left:4px solid var(--accent);border-radius:var(--radius-md);padding:18px 20px;">'
+            f'<div style="font-size:.9rem;font-weight:700;color:var(--text-primary);margin-bottom:6px;">{p.name}</div>'
+            f'<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px;">'
+            f'<span class="visa-pill">📁 Formats: {", ".join(p.accepted_formats)}</span>'
+            f'<span class="visa-pill">📦 Max: {p.max_file_mb}MB per file</span>'
+            f'<span class="visa-pill">🕐 {p.upload_timing}</span>'
+            f'</div>'
+            f'<div style="font-size:.84rem;color:var(--text-secondary);margin-bottom:12px;">{p.notes}</div>'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
+        col_portal, col_login = st.columns(2)
+        with col_portal:
+            st.markdown(f'<a href="{p.url}" target="_blank" class="source-link" style="padding:8px 14px;font-weight:600;">↗ Open upload portal</a>', unsafe_allow_html=True)
+        with col_login:
+            if p.login_instructions:
+                with st.expander("📋 How to upload — step by step"):
+                    for i, step in enumerate(p.login_instructions, 1):
+                        st.markdown(f'<div class="step-row"><div class="step-num">{i}</div><div class="step-text">{step}</div></div>', unsafe_allow_html=True)
+
+    # ── Phase 2: Appointment Portals ──────────────────────────────────────────
+    if getattr(report, "appointment_portals", None):
+        st.markdown("<hr>", unsafe_allow_html=True)
+        st.markdown('<div class="section-label">📅 Appointment Booking</div>', unsafe_allow_html=True)
+        for portal in report.appointment_portals:
+            st.markdown(
+                f'<div style="background:var(--bg-raised);border:1px solid var(--border);'
+                f'border-left:4px solid var(--gold);border-radius:var(--radius-md);padding:18px 20px;margin-bottom:10px;">'
+                f'<div style="font-size:.9rem;font-weight:700;color:var(--text-primary);margin-bottom:6px;">{portal.name}</div>'
+                f'<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px;">'
+                f'<span class="visa-pill">⏳ ~{portal.avg_wait_weeks} week wait</span>'
+                f'</div>'
+                f'<div style="font-size:.84rem;color:var(--text-secondary);margin-bottom:12px;">{portal.notes}</div>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
+            col_book, col_locs = st.columns(2)
+            with col_book:
+                st.markdown(f'<a href="{portal.booking_url}" target="_blank" class="source-link" style="padding:8px 14px;font-weight:600;">↗ Book appointment</a>', unsafe_allow_html=True)
+            with col_locs:
+                if portal.locations_info_url:
+                    st.markdown(f'<a href="{portal.locations_info_url}" target="_blank" class="source-link" style="padding:8px 14px;">↗ Find nearest centre</a>', unsafe_allow_html=True)
+            if portal.booking_steps:
+                with st.expander("📋 How to book — step by step"):
+                    for i, step in enumerate(portal.booking_steps, 1):
+                        st.markdown(f'<div class="step-row"><div class="step-num">{i}</div><div class="step-text">{step}</div></div>', unsafe_allow_html=True)
+
+    # ── Phase 2: Status Tracking ──────────────────────────────────────────────
+    if getattr(report, "tracking_url", None):
+        st.markdown(
+            f'<div class="info-banner banner-blue" style="margin-top:16px;">'
+            f'🔎 <strong>Track your application:</strong> '
+            f'<a href="{report.tracking_url}" target="_blank" style="color:var(--accent);">{report.tracking_url}</a>'
+            f'{f" — {report.tracking_instructions}" if report.tracking_instructions else ""}'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
+
     _base = report.destination_country.replace(' ', '_').lower()
     _k    = f"{key_prefix}_{_base}"
 
@@ -1090,7 +1201,7 @@ def _build_pdf(report: VisaReport) -> bytes:
     story.append(Spacer(1, 10))
     story.append(HRFlowable(width="100%", thickness=0.5, color=MUTED))
     story.append(Spacer(1, 4))
-    story.append(Paragraph("Generated by Visa Application Multi-Agent System — Phase 1", footer_style))
+    story.append(Paragraph("Generated by Visa Application Assistant — Phase 2", footer_style))
 
     doc.build(story)
     return buf.getvalue()
@@ -1194,7 +1305,7 @@ def _build_docx(report: VisaReport) -> bytes:
                 _bullet(f"{src['title']} — {src['url']}")
 
     document.add_paragraph()
-    p = document.add_paragraph("Generated by Visa Application Multi-Agent System — Phase 1")
+    p = document.add_paragraph("Generated by Visa Application Assistant — Phase 2")
     p.runs[0].font.color.rgb = MUTED
     p.runs[0].font.size = Pt(8)
     p.alignment = WD_ALIGN_PARAGRAPH.CENTER
@@ -1216,7 +1327,7 @@ def main():
         <div class="sidebar-logo">
             <div class="logo-icon">🛂</div>
             <div class="logo-title">Visa Assistant</div>
-            <div class="logo-sub">AI-Powered · Phase 1</div>
+            <div class="logo-sub">AI-Powered · Phase 2</div>
         </div>""", unsafe_allow_html=True)
 
         api_key = st.text_input(
@@ -1238,8 +1349,11 @@ def main():
         if st.button("🔄 New Application", use_container_width=True):
             if st.session_state.orchestrator:
                 st.session_state.orchestrator.reset()
-            for k in ["orchestrator", "messages", "report", "pipeline_running"]:
-                st.session_state[k] = None if k == "orchestrator" else ([] if k == "messages" else (None if k == "report" else False))
+            for k in ["orchestrator", "messages", "report", "pipeline_running", "saved_app_id"]:
+                st.session_state[k] = None if k in ("orchestrator", "saved_app_id") else ([] if k == "messages" else (None if k == "report" else False))
+            for k in ["tracker_items", "appt_date", "appt_time", "appt_location", "appt_ref", "appt_saved"]:
+                st.session_state[k] = [] if k == "tracker_items" else ""
+            st.session_state.appt_saved = False
             st.session_state.pipeline_stage = PipelineStage.INTAKE
             st.session_state.active_tab = 0
             st.rerun()
@@ -1251,7 +1365,7 @@ def main():
     st.markdown("""
     <div class="page-hero">
         <h1>🛂 Visa Application Assistant</h1>
-        <p>Multi-Agent AI System &nbsp;·&nbsp; <span class="gold-line">Phase 1</span> — Requirements Research &amp; Analysis</p>
+        <p>Multi-Agent AI System &nbsp;·&nbsp; <span class="gold-line">Phase 2</span> — Research · Forms · Portals · Progress Tracker</p>
     </div>""", unsafe_allow_html=True)
 
     # ── Animated pipeline bar ─────────────────────────────────────────────────
@@ -1291,12 +1405,13 @@ def main():
             return "done"
         return "waiting"
 
-    # ── Five tabs ─────────────────────────────────────────────────────────────
-    tab1, tab2, tab3, tab4, tab5 = st.tabs([
+    # ── Six tabs ──────────────────────────────────────────────────────────────
+    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
         "💬  Step 1 · Intake",
         "🔍  Step 2 · Research",
         "📊  Step 3 · Analysis",
         "📋  Step 4 · Report",
+        "✅  Step 5 · Track Progress",
         "🗂️  History",
     ])
 
@@ -1498,9 +1613,212 @@ def main():
                 )
             render_report(st.session_state.report, key_prefix="report_tab")
 
-    # ── TAB 5: HISTORY ────────────────────────────────────────────────────────
+    # ── TAB 5: TRACKER ────────────────────────────────────────────────────────
     with tab5:
-        _step_header("🗂", "Application History", "All saved visa applications and their reports", "done" if db.get_stats()["total"] > 0 else "waiting")
+        _step_header("5", "Track Progress", "Your step-by-step application checklist", tab_state(PipelineStage.COMPLETE))
+
+        if stage != PipelineStage.COMPLETE or not st.session_state.saved_app_id:
+            st.markdown("""
+            <div class="research-card">
+                <div class="rc-icon">🔒</div>
+                <div class="rc-title">Tracker not yet available</div>
+                <div class="rc-sub">Complete Steps 1–4 to generate your personalised tracker.</div>
+            </div>""", unsafe_allow_html=True)
+        else:
+            app_id = st.session_state.saved_app_id
+            progress = db.get_progress(app_id)
+            tracker_items = db.get_tracker_items(app_id)
+            report = st.session_state.report
+
+            # ── Progress bar ──────────────────────────────────────────────
+            pct = progress["pct_complete"]
+            bar_color = "#3fb950" if pct == 100 else "#d4a843"
+            st.markdown(
+                f'<div style="margin-bottom:20px;">'
+                f'<div style="display:flex;justify-content:space-between;margin-bottom:6px;">'
+                f'<span style="font-size:.82rem;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--text-muted);">Overall Progress</span>'
+                f'<span style="font-size:.88rem;font-weight:700;color:{bar_color};">{pct}% complete</span>'
+                f'</div>'
+                f'<div style="background:var(--bg-hover);border-radius:4px;height:8px;overflow:hidden;">'
+                f'<div style="background:{bar_color};width:{pct}%;height:100%;border-radius:4px;transition:width .4s;"></div>'
+                f'</div>'
+                f'<div style="display:flex;gap:16px;margin-top:8px;font-size:.78rem;color:var(--text-muted);">'
+                f'<span>✅ Done: {progress["done"]}</span>'
+                f'<span>🔄 In progress: {progress["in_progress"]}</span>'
+                f'<span>⏳ Pending: {progress["pending"]}</span>'
+                f'{f'<span style="color:#f59e0b;">⚠️ Blocked: {progress["blocked"]}</span>' if progress["blocked"] else ""}'
+                f'</div></div>',
+                unsafe_allow_html=True,
+            )
+
+            # ── Appointment section ───────────────────────────────────────
+            appointment = db.get_appointment(app_id)
+            has_appt = appointment and appointment.get("reference_number")
+            portal = report.appointment_portals[0] if getattr(report, "appointment_portals", None) else None
+
+            st.markdown('<div class="section-label">📅 Appointment</div>', unsafe_allow_html=True)
+            if has_appt:
+                st.markdown(
+                    f'<div class="info-banner banner-green">✅ <strong>Appointment booked</strong> — '
+                    f'{appointment["portal_name"]} · {appointment["appointment_date"]} {appointment["appointment_time"]} · '
+                    f'Ref: <strong>{appointment["reference_number"]}</strong></div>',
+                    unsafe_allow_html=True,
+                )
+                # ICS download
+                if appointment.get("ics_content"):
+                    dest_slug = report.destination_country.replace(" ", "_").lower()
+                    st.download_button(
+                        "📅 Download calendar event (.ics)",
+                        data=appointment["ics_content"],
+                        file_name=f"visa_appointment_{dest_slug}.ics",
+                        mime="text/calendar",
+                        use_container_width=False,
+                        key=f"ics_dl_{app_id}",
+                    )
+            else:
+                # Booking guidance card
+                if portal:
+                    st.markdown(
+                        f'<div style="background:var(--bg-raised);border:1px solid var(--border);'
+                        f'border-left:4px solid var(--gold);border-radius:var(--radius-md);padding:16px 20px;margin-bottom:12px;">'
+                        f'<div style="font-size:.88rem;font-weight:700;color:var(--text-primary);margin-bottom:4px;">{portal.name}</div>'
+                        f'<span class="visa-pill" style="margin-bottom:8px;display:inline-block;">⏳ ~{portal.avg_wait_weeks} week wait</span>'
+                        f'<div style="margin-top:8px;">'
+                        f'<a href="{portal.booking_url}" target="_blank" class="source-link" style="padding:7px 14px;font-weight:600;">↗ Book appointment now</a>'
+                        f'</div></div>',
+                        unsafe_allow_html=True,
+                    )
+
+                # Reference number entry form
+                st.markdown('<div style="margin-top:4px;margin-bottom:4px;font-size:.82rem;font-weight:700;color:var(--text-muted);letter-spacing:.06em;text-transform:uppercase;">Record your booking</div>', unsafe_allow_html=True)
+                with st.form(f"appt_form_{app_id}", clear_on_submit=False):
+                    portal_name_val = portal.name if portal else ""
+                    portal_url_val  = portal.booking_url if portal else ""
+                    col_a, col_b = st.columns(2)
+                    with col_a:
+                        appt_date = st.text_input("Appointment date (YYYY-MM-DD)", value=st.session_state.appt_date, placeholder="2025-06-15")
+                        appt_loc  = st.text_input("Application centre / location", value=st.session_state.appt_location, placeholder="VFS Global Abu Dhabi, UAE")
+                    with col_b:
+                        appt_time = st.text_input("Time (HH:MM)", value=st.session_state.appt_time, placeholder="10:30")
+                        appt_ref  = st.text_input("Reference number ★", value=st.session_state.appt_ref, placeholder="VFSAE123456789")
+                    appt_notes = st.text_area("Notes (optional)", height=68, placeholder="e.g. bring 2 passport photos, fee paid")
+                    save_appt = st.form_submit_button("💾 Save appointment & generate calendar", use_container_width=True)
+
+                    if save_appt:
+                        if not appt_ref.strip():
+                            st.warning("Enter the reference number from your booking confirmation.")
+                        else:
+                            ics = generate_ics(
+                                application_id=app_id,
+                                portal_name=portal_name_val or appt_loc,
+                                appointment_date=appt_date,
+                                appointment_time=appt_time,
+                                location=appt_loc,
+                                reference_number=appt_ref,
+                                visa_type=report.visa_type,
+                            )
+                            db.save_appointment(
+                                app_id=app_id,
+                                portal_name=portal_name_val or appt_loc,
+                                portal_url=portal_url_val,
+                                appointment_date=appt_date,
+                                appointment_time=appt_time,
+                                location=appt_loc,
+                                reference_number=appt_ref,
+                                confirmation_notes=appt_notes,
+                                ics_content=ics,
+                            )
+                            st.session_state.appt_ref  = appt_ref
+                            st.session_state.appt_date = appt_date
+                            st.session_state.appt_saved = True
+                            st.rerun()
+
+            # ── Checklist ─────────────────────────────────────────────────
+            st.markdown("<hr>", unsafe_allow_html=True)
+            st.markdown('<div class="section-label">✅ Checklist</div>', unsafe_allow_html=True)
+
+            STATUS_OPTIONS = [
+                ItemStatus.PENDING,
+                ItemStatus.IN_PROGRESS,
+                ItemStatus.DONE,
+                ItemStatus.BLOCKED,
+                ItemStatus.NOT_NEEDED,
+            ]
+            STATUS_DISPLAY = {s: f"{STATUS_ICONS[s]} {STATUS_LABELS[s]}" for s in STATUS_OPTIONS}
+
+            # Group by item type for cleaner UI
+            type_order = [
+                (ItemType.DOCUMENT,    "📄 Documents"),
+                (ItemType.STEP,        "📋 Application steps"),
+                (ItemType.APPOINTMENT, "📅 Appointment"),
+                (ItemType.SUBMISSION,  "📤 Submission"),
+                (ItemType.DECISION,    "🔎 Tracking & decision"),
+            ]
+            items_by_type = {}
+            for item in tracker_items:
+                items_by_type.setdefault(item["item_type"], []).append(item)
+
+            for itype, group_label in type_order:
+                group = items_by_type.get(itype, [])
+                if not group:
+                    continue
+                st.markdown(f'<div style="font-size:.78rem;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--text-muted);margin:18px 0 8px;">{group_label}</div>', unsafe_allow_html=True)
+                for item in group:
+                    with st.container():
+                        icon = STATUS_ICONS.get(item["status"], "⏳")
+                        col_icon, col_info, col_status, col_link = st.columns([0.05, 0.52, 0.25, 0.18])
+                        with col_icon:
+                            st.markdown(f'<div style="font-size:1.1rem;padding-top:6px;">{icon}</div>', unsafe_allow_html=True)
+                        with col_info:
+                            st.markdown(
+                                f'<div style="padding:4px 0;">'
+                                f'<div style="font-size:.88rem;font-weight:600;color:var(--text-primary);">{item["label"]}</div>'
+                                f'{f'<div style="font-size:.78rem;color:var(--text-secondary);margin-top:2px;">{item["details"]}</div>' if item.get("details") else ""}'
+                                f'</div>',
+                                unsafe_allow_html=True,
+                            )
+                        with col_status:
+                            new_status = st.selectbox(
+                                "status",
+                                options=STATUS_OPTIONS,
+                                index=STATUS_OPTIONS.index(item["status"]) if item["status"] in STATUS_OPTIONS else 0,
+                                format_func=lambda s: STATUS_DISPLAY[s],
+                                label_visibility="collapsed",
+                                key=f"tracker_sel_{item['id']}",
+                            )
+                            if new_status != item["status"]:
+                                db.update_tracker_item(item["id"], new_status)
+                                st.rerun()
+                        with col_link:
+                            if item.get("link"):
+                                st.markdown(
+                                    f'<a href="{item["link"]}" target="_blank" class="source-link" '
+                                    f'style="padding:5px 10px;font-size:.78rem;margin-top:4px;display:inline-flex;">'
+                                    f'↗ {item.get("link_label") or "Open"}</a>',
+                                    unsafe_allow_html=True,
+                                )
+                        st.markdown('<hr style="margin:4px 0;border-color:var(--border-light);">', unsafe_allow_html=True)
+
+            # ── Export checklist PDF ───────────────────────────────────────
+            st.markdown("<hr>", unsafe_allow_html=True)
+            st.markdown('<div class="section-label">⬇️ Export Checklist</div>', unsafe_allow_html=True)
+            try:
+                pdf_bytes = build_tracker_pdf(tracker_items, report, progress)
+                dest_slug = report.destination_country.replace(" ", "_").lower()
+                st.download_button(
+                    "📕 Download checklist PDF",
+                    data=pdf_bytes,
+                    file_name=f"visa_checklist_{dest_slug}.pdf",
+                    mime="application/pdf",
+                    use_container_width=False,
+                    key=f"checklist_pdf_{app_id}",
+                )
+            except Exception as ex:
+                st.caption(f"PDF export unavailable: {ex}")
+
+    # ── TAB 6: HISTORY ────────────────────────────────────────────────────────
+    with tab6:
+        _step_header("🗂", "Application History", "All saved visa applications and their reports", "done" if db.get_stats().get("total", 0) > 0 else "waiting")
 
         db.init_db()
         stats = db.get_stats()

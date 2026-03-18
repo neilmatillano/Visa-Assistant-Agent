@@ -1,14 +1,16 @@
 """
-Analysis Agent — Visa Application Multi-Agent System (Phase 1)
+Analysis Agent — Visa Application Multi-Agent System (Phase 2)
 
 Takes the ResearchResult from the Research Agent and synthesises it into
 a structured, user-friendly visa requirements report with a document
-checklist, step-by-step instructions, and direct application links.
+checklist, step-by-step instructions, direct application links, form
+download links, upload portal info, and appointment portal details.
 """
 
 from __future__ import annotations
 
 import json
+import os
 from dataclasses import dataclass, field
 from typing import Optional
 
@@ -29,7 +31,46 @@ class DocumentItem:
     document: str
     details: str
     mandatory: bool
-    status: str = "pending"  # pending | ready | not_applicable
+    status: str = "pending"       # pending | ready | not_applicable
+    upload_format: str = "PDF"
+    max_file_mb: int = 2
+
+
+@dataclass
+class FormLink:
+    """A downloadable or linkable visa application form."""
+    id: str
+    title: str
+    description: str
+    url: str
+    format: str
+    mandatory: bool
+    notes: str = ""
+
+
+@dataclass
+class UploadPortal:
+    """The document upload portal for this visa application."""
+    name: str
+    url: str
+    login_url: str
+    accepted_formats: list[str]
+    max_file_mb: int
+    notes: str
+    upload_timing: str
+    login_instructions: list[str] = field(default_factory=list)
+
+
+@dataclass
+class AppointmentPortal:
+    """Appointment booking portal details."""
+    name: str
+    url: str
+    booking_url: str
+    avg_wait_weeks: int
+    notes: str
+    booking_steps: list[str] = field(default_factory=list)
+    locations_info_url: str = ""
 
 
 @dataclass
@@ -73,6 +114,112 @@ class VisaReport:
     # Summary narrative
     executive_summary: str = ""
 
+    # Phase 2 additions
+    forms: list[FormLink] = field(default_factory=list)
+    upload_portal: Optional[UploadPortal] = None
+    appointment_portals: list[AppointmentPortal] = field(default_factory=list)
+    tracking_url: str = ""
+    tracking_instructions: str = ""
+
+
+# ---------------------------------------------------------------------------
+# Lookup helpers
+# ---------------------------------------------------------------------------
+
+_DATA_DIR = os.path.join(os.path.dirname(__file__), "..", "data")
+
+
+def _load_forms(visa_target: str, schengen_country: Optional[str] = None) -> list[FormLink]:
+    path = os.path.join(_DATA_DIR, "visa_forms.json")
+    try:
+        with open(path, "r") as f:
+            data = json.load(f)
+        target_data = data.get(visa_target, {})
+        forms_raw = list(target_data.get("forms", []))
+        return [
+            FormLink(
+                id=fm["id"],
+                title=fm["title"],
+                description=fm["description"],
+                url=fm["url"],
+                format=fm["format"],
+                mandatory=fm.get("mandatory", False),
+                notes=fm.get("notes", ""),
+            )
+            for fm in forms_raw
+        ]
+    except Exception:
+        return []
+
+
+def _load_upload_portal(visa_target: str) -> Optional[UploadPortal]:
+    path = os.path.join(_DATA_DIR, "visa_portals.json")
+    try:
+        with open(path, "r") as f:
+            data = json.load(f)
+        p = data.get(visa_target, {}).get("upload_portal", {})
+        if not p:
+            return None
+        return UploadPortal(
+            name=p["name"],
+            url=p["url"],
+            login_url=p.get("login_url", p["url"]),
+            accepted_formats=p.get("accepted_formats", ["PDF"]),
+            max_file_mb=p.get("max_file_mb", 2),
+            notes=p.get("notes", ""),
+            upload_timing=p.get("upload_timing", "Before appointment"),
+            login_instructions=p.get("login_instructions", []),
+        )
+    except Exception:
+        return None
+
+
+def _load_appointment_portals(
+    visa_target: str,
+    schengen_country: Optional[str] = None,
+) -> tuple[list[AppointmentPortal], str, str]:
+    path = os.path.join(_DATA_DIR, "visa_portals.json")
+    try:
+        with open(path, "r") as f:
+            data = json.load(f)
+        target = data.get(visa_target, {})
+        tracking_url = target.get("tracking_url", "")
+        tracking_instructions = target.get("tracking_instructions", "")
+        booking_steps = target.get("booking_steps", [])
+
+        if visa_target == "schengen" and schengen_country:
+            country_key = schengen_country.lower()
+            cp = target.get("country_portals", {}).get(country_key)
+            if cp:
+                tracking_url = cp.get("tracking_url", tracking_url)
+                portals = [AppointmentPortal(
+                    name=cp["portal_name"],
+                    url=cp["portal_url"],
+                    booking_url=cp["booking_url"],
+                    avg_wait_weeks=cp.get("avg_wait_weeks", 3),
+                    notes=f"Official portal for {schengen_country} visa applications.",
+                    booking_steps=booking_steps,
+                    locations_info_url=cp.get("locations_info_url", cp["portal_url"]),
+                )]
+                return portals, tracking_url, tracking_instructions
+
+        portals_raw = target.get("appointment_portals", [])
+        portals = [
+            AppointmentPortal(
+                name=p["name"],
+                url=p["url"],
+                booking_url=p["booking_url"],
+                avg_wait_weeks=p.get("avg_wait_weeks", 3),
+                notes=p.get("notes", ""),
+                booking_steps=booking_steps,
+                locations_info_url=p.get("locations_info_url", p["url"]),
+            )
+            for p in portals_raw
+        ]
+        return portals, tracking_url, tracking_instructions
+    except Exception:
+        return [], "", ""
+
 
 # ---------------------------------------------------------------------------
 # Analysis Agent
@@ -94,10 +241,10 @@ Also determine:
 Respond in JSON format:
 {
   "executive_summary": "...",
-  "embassy_guidance": "...",  // null if not applicable
+  "embassy_guidance": "...",
   "eta_eligible": false,
-  "eta_note": "...",  // null if not applicable
-  "priority_flags": ["...", "..."]  // Important warnings or highlights
+  "eta_note": "...",
+  "priority_flags": ["...", "..."]
 }"""
 
 
@@ -109,13 +256,9 @@ class AnalysisAgent:
         self.logger = logger or AgentLogger()
 
     def analyse(self, research: ResearchResult, schengen_main_country: Optional[str] = None) -> VisaReport:
-        """
-        Main entry point. Returns a VisaReport ready for display.
-        """
         reqs = research.raw_requirements
         self.logger.analysis_start(research.visa_type, research.applicant_nationality)
 
-        # Build document lists
         mandatory_docs = []
         optional_docs  = []
         for doc in reqs.get("required_documents", []):
@@ -132,7 +275,6 @@ class AnalysisAgent:
 
         self.logger.analysis_docs_parsed(len(mandatory_docs), len(optional_docs))
 
-        # Log each mandatory document for transparency
         if mandatory_docs:
             self.logger.events.append(__import__("agents.logger", fromlist=["LogEvent"]).LogEvent(
                 ts=__import__("time").time(),
@@ -143,7 +285,6 @@ class AnalysisAgent:
                 detail="\n".join(f"• {d.document}" for d in mandatory_docs),
             ))
 
-        # Determine fee string
         if research.visa_target == "uk":
             fee = f"£{reqs.get('fee_gbp', 'N/A')} (standard processing)"
         else:
@@ -151,7 +292,6 @@ class AnalysisAgent:
 
         self.logger.analysis_fee(fee)
 
-        # Check ETA eligibility (UK only)
         eta_eligible = False
         eta_note = None
         if research.visa_target == "uk":
@@ -170,7 +310,6 @@ class AnalysisAgent:
 
         self.logger.analysis_eta_check(research.applicant_nationality, eta_eligible, eta_note)
 
-        # Log application steps
         steps = reqs.get("application_steps", [])
         self.logger.analysis_steps(len(steps))
         if steps:
@@ -185,7 +324,6 @@ class AnalysisAgent:
                 detail="\n".join(f"{i+1}. {s}" for i, s in enumerate(steps)),
             ))
 
-        # Get LLM-generated executive summary and guidance
         self.logger.analysis_llm_start()
         llm_output = self._get_llm_analysis(research, schengen_main_country, eta_eligible)
 
@@ -197,6 +335,13 @@ class AnalysisAgent:
             self.logger.analysis_embassy(embassy)
         if flags:
             self.logger.analysis_flags(flags)
+
+        # Phase 2: load forms and portal data
+        forms = _load_forms(research.visa_target, schengen_main_country)
+        upload_portal = _load_upload_portal(research.visa_target)
+        appointment_portals, tracking_url, tracking_instructions = _load_appointment_portals(
+            research.visa_target, schengen_main_country
+        )
 
         self.logger.analysis_done(reqs.get("visa_type", ""), research.destination_country)
 
@@ -221,6 +366,11 @@ class AnalysisAgent:
             eta_eligible=eta_eligible,
             eta_note=eta_note,
             executive_summary=llm_output.get("executive_summary", ""),
+            forms=forms,
+            upload_portal=upload_portal,
+            appointment_portals=appointment_portals,
+            tracking_url=tracking_url,
+            tracking_instructions=tracking_instructions,
         )
 
     def _get_llm_analysis(
@@ -229,7 +379,6 @@ class AnalysisAgent:
         schengen_main_country: Optional[str],
         eta_eligible: bool,
     ) -> dict:
-        """Use LLM to generate the executive summary and embassy guidance."""
         context = f"""
 Visa Type: {research.visa_type}
 Applicant Nationality: {research.applicant_nationality}
