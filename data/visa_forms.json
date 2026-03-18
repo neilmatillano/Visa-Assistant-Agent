@@ -1,0 +1,117 @@
+{
+  "uk": {
+    "visa_type": "UK Standard Visitor Visa",
+    "forms": [
+      {
+        "id": "uk_online_application",
+        "title": "UK Visa Online Application (UKVI)",
+        "description": "Official online application form — must be completed before your appointment",
+        "url": "https://www.gov.uk/apply-uk-visa",
+        "format": "Online portal",
+        "mandatory": true,
+        "notes": "You will need a valid email address and debit/credit card to pay the fee online."
+      },
+      {
+        "id": "uk_appendix2",
+        "title": "Appendix 2 — Financial Requirement Guidance",
+        "description": "Supplementary guidance on financial evidence requirements",
+        "url": "https://www.gov.uk/government/publications/visitor-visa-guide-to-supporting-documents",
+        "format": "PDF guidance",
+        "mandatory": false,
+        "notes": "Useful reference for preparing your bank statement and financial evidence."
+      },
+      {
+        "id": "uk_tb_test",
+        "title": "TB Test Certificate (certain nationalities)",
+        "description": "Required if applying from a country on the TB testing list",
+        "url": "https://www.gov.uk/tb-test-visa/countries-where-you-need-a-tb-test-to-apply-for-a-uk-visa",
+        "format": "PDF / Online check",
+        "mandatory": false,
+        "notes": "Check if your country of residence requires a TB test before applying."
+      }
+    ],
+    "supporting_docs_guide": "https://www.gov.uk/government/publications/visitor-visa-guide-to-supporting-documents",
+    "fee_guide": "https://www.gov.uk/visa-fees"
+  },
+  "schengen": {
+    "visa_type": "Schengen Short-Stay Visa (Type C)",
+    "forms": [
+      {
+        "id": "schengen_application_form",
+        "title": "Schengen Visa Application Form",
+        "description": "Uniform Schengen application form — required by all Schengen member states",
+        "url": "https://home-affairs.ec.europa.eu/system/files/2020-04/annex_16_application_form_for_schengen_visa_en_0.pdf",
+        "format": "PDF (fillable)",
+        "mandatory": true,
+        "notes": "Print, fill in block capitals, and sign by hand. Do not use digital signature."
+      },
+      {
+        "id": "vfs_global_form",
+        "title": "VFS Global Online Application (Spain, Portugal, Netherlands, Belgium & others)",
+        "description": "Some embassies process via VFS Global online portal",
+        "url": "https://www.vfsglobal.com/en/individuals/index.html",
+        "format": "Online portal",
+        "mandatory": false,
+        "notes": "Check which portal your specific embassy uses before completing."
+      },
+      {
+        "id": "tls_contact_form",
+        "title": "TLScontact Online Application (France, Germany, Italy & others)",
+        "description": "France, Germany and several others use TLScontact for application submission",
+        "url": "https://fr.tlscontact.com/",
+        "format": "Online portal",
+        "mandatory": false,
+        "notes": "TLScontact is used by France, Germany, Italy, Czech Republic and others. Check your destination embassy."
+      },
+      {
+        "id": "schengen_itinerary",
+        "title": "Travel Itinerary Template",
+        "description": "Day-by-day travel plan — required if not booking a package tour",
+        "url": "https://home-affairs.ec.europa.eu/policies/schengen-borders-and-visa/visa-policy_en",
+        "format": "Template (self-prepared)",
+        "mandatory": false,
+        "notes": "Prepare a day-by-day itinerary including accommodation addresses, cities visited, and activities."
+      }
+    ],
+    "country_specific": {
+      "france": {
+        "portal": "TLScontact",
+        "portal_url": "https://fr.tlscontact.com/",
+        "form_url": "https://home-affairs.ec.europa.eu/system/files/2020-04/annex_16_application_form_for_schengen_visa_en_0.pdf",
+        "embassy_info_url": "https://france-visas.gouv.fr/en_US/web/france-visas/welcome-page"
+      },
+      "germany": {
+        "portal": "TLScontact / Embassy direct",
+        "portal_url": "https://de.tlscontact.com/",
+        "form_url": "https://home-affairs.ec.europa.eu/system/files/2020-04/annex_16_application_form_for_schengen_visa_en_0.pdf",
+        "embassy_info_url": "https://www.auswaertiges-amt.de/en/visa-service/-/231148"
+      },
+      "spain": {
+        "portal": "VFS Global",
+        "portal_url": "https://www.vfsglobal.com/spain/",
+        "form_url": "https://home-affairs.ec.europa.eu/system/files/2020-04/annex_16_application_form_for_schengen_visa_en_0.pdf",
+        "embassy_info_url": "https://www.exteriores.gob.es/en/ServiciosAlCiudadano/Paginas/Solicitud-de-visado.aspx"
+      },
+      "netherlands": {
+        "portal": "VFS Global",
+        "portal_url": "https://www.vfsglobal.com/netherlands/",
+        "form_url": "https://home-affairs.ec.europa.eu/system/files/2020-04/annex_16_application_form_for_schengen_visa_en_0.pdf",
+        "embassy_info_url": "https://www.netherlandsworldwide.nl/visas-residence-permits-and-admissions/schengen-visa"
+      },
+      "italy": {
+        "portal": "VFS Global / TLScontact",
+        "portal_url": "https://www.vfsglobal.com/italy/",
+        "form_url": "https://home-affairs.ec.europa.eu/system/files/2020-04/annex_16_application_form_for_schengen_visa_en_0.pdf",
+        "embassy_info_url": "https://vistoperitalia.esteri.it/home/en"
+      },
+      "greece": {
+        "portal": "VFS Global",
+        "portal_url": "https://www.vfsglobal.com/greece/",
+        "form_url": "https://home-affairs.ec.europa.eu/system/files/2020-04/annex_16_application_form_for_schengen_visa_en_0.pdf",
+        "embassy_info_url": "https://www.mfa.gr/en/visas/"
+      }
+    },
+    "supporting_docs_guide": "https://home-affairs.ec.europa.eu/policies/schengen-borders-and-visa/visa-policy_en",
+    "fee_guide": "https://home-affairs.ec.europa.eu/policies/schengen-borders-and-visa/visa-policy/visa-fees_en"
+  }
+}

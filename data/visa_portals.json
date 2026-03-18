@@ -1,0 +1,156 @@
+{
+  "uk": {
+    "upload_portal": {
+      "name": "UKVCAS (UK Visa and Citizenship Application Services)",
+      "url": "https://www.ukvcas.co.uk/",
+      "login_url": "https://www.ukvcas.co.uk/account/login",
+      "accepted_formats": ["PDF", "JPEG", "PNG"],
+      "max_file_mb": 6,
+      "notes": "Register on UKVCAS before your appointment. Upload documents 24–48 hours in advance. Original documents must also be brought to your appointment.",
+      "upload_timing": "Before appointment",
+      "login_instructions": [
+        "Go to ukvcas.co.uk and click 'Register'",
+        "Use the same email as your UKVI online application",
+        "Verify your email address",
+        "Log in and navigate to 'My Documents'",
+        "Upload each document as a separate PDF or JPEG file",
+        "Label each file clearly (e.g. 'Passport_Main_Page.pdf')"
+      ]
+    },
+    "appointment_portals": [
+      {
+        "name": "UKVCAS Service Points (UK appointments for non-UK applicants — via embassy)",
+        "url": "https://www.ukvcas.co.uk/",
+        "booking_url": "https://www.ukvcas.co.uk/book-appointment",
+        "notes": "Book after completing your UKVI online application and paying the fee.",
+        "avg_wait_weeks": 3,
+        "locations_info_url": "https://www.ukvcas.co.uk/all-ssc"
+      },
+      {
+        "name": "VFS Global (UK visas from select countries)",
+        "url": "https://www.vfsglobal.co.uk/",
+        "booking_url": "https://www.vfsglobal.co.uk/",
+        "notes": "Used in countries where VFS Global operates as the UK visa application centre.",
+        "avg_wait_weeks": 3,
+        "locations_info_url": "https://www.gov.uk/find-a-visa-application-centre"
+      }
+    ],
+    "tracking_url": "https://www.gov.uk/track-visa-application",
+    "tracking_instructions": "Use the reference number from your application acknowledgement email to track your application on the UKVI website.",
+    "booking_steps": [
+      "Complete and pay for your UKVI online application at gov.uk/apply-uk-visa",
+      "You will receive an application reference number (e.g. GWF0XXXXXXXX)",
+      "Go to ukvcas.co.uk or vfsglobal.co.uk (depending on your country)",
+      "Register or log in with your application reference number",
+      "Select your nearest service point / application centre",
+      "Choose an available appointment date and time",
+      "Confirm your appointment and download the booking confirmation",
+      "Add the appointment to your calendar",
+      "Upload your documents online before the appointment",
+      "Attend your appointment with original documents"
+    ]
+  },
+  "schengen": {
+    "upload_portal": {
+      "name": "Depends on embassy — TLScontact, VFS Global, or Embassy direct",
+      "url": "https://www.vfsglobal.com/",
+      "accepted_formats": ["PDF", "JPEG", "PNG"],
+      "max_file_mb": 2,
+      "notes": "Document upload requirements vary by embassy. Some require physical documents only at the appointment. Check your specific embassy's instructions.",
+      "upload_timing": "At appointment or online (varies by embassy)",
+      "login_instructions": [
+        "Visit the portal for your destination country's embassy",
+        "Register with a valid email address",
+        "Create an application and enter your personal details",
+        "Upload documents as PDF or JPEG (max 2MB each)",
+        "Ensure all pages are legible and not cut off",
+        "Bank statements must be certified copies or originals"
+      ]
+    },
+    "appointment_portals": [
+      {
+        "name": "VFS Global — France, Spain, Greece, Netherlands and others",
+        "url": "https://www.vfsglobal.com/",
+        "booking_url": "https://www.vfsglobal.com/en/individuals/index.html",
+        "notes": "Used by many Schengen embassies. Select your country of application and destination country.",
+        "avg_wait_weeks": 3,
+        "locations_info_url": "https://www.vfsglobal.com/en/individuals/find-a-visa-centre.html"
+      },
+      {
+        "name": "TLScontact — France, Germany, Belgium, Czech Republic, Poland",
+        "url": "https://www.tlscontact.com/",
+        "booking_url": "https://register.tlscontact.com/",
+        "notes": "Used by French, German and several other Schengen embassies.",
+        "avg_wait_weeks": 3,
+        "locations_info_url": "https://www.tlscontact.com/service"
+      },
+      {
+        "name": "BLS International — Portugal, Spain (some markets)",
+        "url": "https://blsinternational.com/",
+        "booking_url": "https://blsinternational.com/",
+        "notes": "Used in some countries for Portugal and Spain visas.",
+        "avg_wait_weeks": 2,
+        "locations_info_url": "https://blsinternational.com/visa/"
+      }
+    ],
+    "country_portals": {
+      "france": {
+        "portal_name": "TLScontact",
+        "portal_url": "https://fr.tlscontact.com/",
+        "booking_url": "https://register.tlscontact.com/",
+        "tracking_url": "https://fr.tlscontact.com/track",
+        "avg_wait_weeks": 3
+      },
+      "germany": {
+        "portal_name": "TLScontact",
+        "portal_url": "https://de.tlscontact.com/",
+        "booking_url": "https://register.tlscontact.com/",
+        "tracking_url": "https://de.tlscontact.com/track",
+        "avg_wait_weeks": 4
+      },
+      "spain": {
+        "portal_name": "VFS Global",
+        "portal_url": "https://www.vfsglobal.com/spain/",
+        "booking_url": "https://www.vfsglobal.com/spain/",
+        "tracking_url": "https://www.vfsglobal.com/spain/track",
+        "avg_wait_weeks": 2
+      },
+      "italy": {
+        "portal_name": "VFS Global",
+        "portal_url": "https://www.vfsglobal.com/italy/",
+        "booking_url": "https://www.vfsglobal.com/italy/",
+        "tracking_url": "https://www.vfsglobal.com/italy/track",
+        "avg_wait_weeks": 3
+      },
+      "netherlands": {
+        "portal_name": "VFS Global",
+        "portal_url": "https://www.vfsglobal.com/netherlands/",
+        "booking_url": "https://www.vfsglobal.com/netherlands/",
+        "tracking_url": "https://www.vfsglobal.com/netherlands/track",
+        "avg_wait_weeks": 3
+      },
+      "greece": {
+        "portal_name": "VFS Global",
+        "portal_url": "https://www.vfsglobal.com/greece/",
+        "booking_url": "https://www.vfsglobal.com/greece/",
+        "tracking_url": "https://www.vfsglobal.com/greece/track",
+        "avg_wait_weeks": 2
+      }
+    },
+    "tracking_url": "https://www.vfsglobal.com/track",
+    "tracking_instructions": "Track your application using the reference number provided at your appointment. Check via the VFS Global or TLScontact tracking portal.",
+    "booking_steps": [
+      "Complete the Schengen visa application form (PDF or online)",
+      "Gather all required documents",
+      "Go to the portal for your destination country's embassy (VFS Global, TLScontact, or BLS)",
+      "Register with a valid email address",
+      "Select your country of residence and destination country",
+      "Choose your nearest visa application centre",
+      "Pick an available appointment slot",
+      "Download and save your booking confirmation",
+      "Add the appointment to your calendar",
+      "Bring all original documents plus photocopies to your appointment",
+      "Pay the visa fee at the application centre (€80 + service fee)"
+    ]
+  }
+}
