@@ -67,6 +67,14 @@ IMPORTANT RULES:
 
 Schengen countries: Austria, Belgium, Czech Republic, Denmark, Estonia, Finland, France, Germany, Greece, Hungary, Iceland, Italy, Latvia, Liechtenstein, Lithuania, Luxembourg, Malta, Netherlands, Norway, Poland, Portugal, Slovakia, Slovenia, Spain, Sweden, Switzerland.
 
+RESIDENCE-BASED EXEMPTIONS — check these as soon as you know both the country of residence and the destination:
+- If the applicant currently lives in a Schengen country (listed above) AND their destination is also a Schengen country: they do NOT need a visa. Third-country nationals with a valid Schengen residence permit can travel freely within the Schengen area. Inform them warmly, then output this JSON immediately:
+  ```json
+  {"no_visa_required": true, "reason": "schengen_resident", "residence": "<their country>", "destination": "<destination country>", "message": "As a resident of <country>, you can travel to <destination> with your valid residence permit and passport — no separate Schengen visa is needed."}
+  ```
+- If the applicant currently lives in the United Kingdom AND their destination is the United Kingdom: clarify their actual travel destination (they are already in the UK).
+- UK residency does NOT exempt a non-EEA national from needing a Schengen visa. Schengen residency does NOT exempt anyone from needing a UK visa. In both those cases, continue the normal intake interview.
+
 Begin by greeting the user and asking for their nationality and destination."""
 
 
@@ -78,6 +86,8 @@ class IntakeAgent:
         self.messages: list = [SystemMessage(content=INTAKE_SYSTEM_PROMPT)]
         self.profile: Optional[ApplicantProfile] = None
         self.is_complete = False
+        self.no_visa_required = False
+        self.no_visa_reason: Optional[dict] = None
 
     def chat(self, user_input: str) -> tuple[str, bool]:
         """
@@ -89,8 +99,8 @@ class IntakeAgent:
         reply = response.content
         self.messages.append(AIMessage(content=reply))
 
-        # Check if the agent has produced a complete profile JSON
-        if "profile_complete" in reply and "```json" in reply:
+        # Check if the agent has produced a complete profile JSON or a no-visa exemption
+        if "```json" in reply:
             try:
                 json_str = reply.split("```json")[1].split("```")[0].strip()
                 data = json.loads(json_str)
@@ -98,6 +108,10 @@ class IntakeAgent:
                     self.profile = ApplicantProfile(**{
                         k: v for k, v in data.items() if k != "profile_complete"
                     })
+                    self.is_complete = True
+                elif data.get("no_visa_required"):
+                    self.no_visa_required = True
+                    self.no_visa_reason = data
                     self.is_complete = True
             except (json.JSONDecodeError, KeyError, ValueError):
                 pass  # Profile parsing failed; continue conversation
@@ -111,3 +125,5 @@ class IntakeAgent:
         self.messages = [SystemMessage(content=INTAKE_SYSTEM_PROMPT)]
         self.profile = None
         self.is_complete = False
+        self.no_visa_required = False
+        self.no_visa_reason = None

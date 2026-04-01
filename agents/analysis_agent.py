@@ -18,6 +18,7 @@ from langchain_openai import ChatOpenAI
 from langchain_core.messages import SystemMessage, HumanMessage
 
 from agents.research_agent import ResearchResult
+from agents.intake_agent import ApplicantProfile
 from agents.logger import AgentLogger
 
 
@@ -236,7 +237,11 @@ Given a research result, produce a concise executive summary (3–4 sentences) t
 Also determine:
 - Whether the applicant needs to apply at a specific embassy (for Schengen, based on their itinerary)
 - Any ETA eligibility (for UK, based on nationality)
-- Any special flags that should be prominently displayed
+- Any special flags that should be prominently displayed based on the applicant's profile:
+  * If Previous Visa Refusal is True: flag this prominently — it must be declared and addressed with a cover letter
+  * If Previous UK Visa Held or Previous Schengen Visa Held is True: note this as a positive factor that strengthens the application
+  * If Previous UK Visa Held and Previous Schengen Visa Held are both False or None: note the applicant is applying for the first time and should ensure their supporting documents are thorough
+  * If Employment Status is Self-employed: flag the need for comprehensive financial evidence (bank statements, business registration)
 
 Respond in JSON format:
 {
@@ -255,7 +260,7 @@ class AnalysisAgent:
         self.llm = llm
         self.logger = logger or AgentLogger()
 
-    def analyse(self, research: ResearchResult, schengen_main_country: Optional[str] = None) -> VisaReport:
+    def analyse(self, research: ResearchResult, schengen_main_country: Optional[str] = None, profile: Optional[ApplicantProfile] = None) -> VisaReport:
         reqs = research.raw_requirements
         self.logger.analysis_start(research.visa_type, research.applicant_nationality)
 
@@ -325,7 +330,7 @@ class AnalysisAgent:
             ))
 
         self.logger.analysis_llm_start()
-        llm_output = self._get_llm_analysis(research, schengen_main_country, eta_eligible)
+        llm_output = self._get_llm_analysis(research, schengen_main_country, eta_eligible, profile)
 
         embassy = llm_output.get("embassy_guidance")
         flags   = llm_output.get("priority_flags", [])
@@ -378,7 +383,19 @@ class AnalysisAgent:
         research: ResearchResult,
         schengen_main_country: Optional[str],
         eta_eligible: bool,
+        profile: Optional[ApplicantProfile] = None,
     ) -> dict:
+        # Build applicant-specific context from the intake profile
+        profile_lines = ""
+        if profile:
+            profile_lines = f"""
+Employment Status: {profile.employment_status or 'Not provided'}
+Previous UK Visa Held: {profile.has_previous_uk_visa}
+Previous Schengen Visa Held: {profile.has_previous_schengen_visa}
+Previous Visa Refusal: {profile.has_previous_refusal}
+Number of Travellers: {profile.num_travellers}
+"""
+
         context = f"""
 Visa Type: {research.visa_type}
 Applicant Nationality: {research.applicant_nationality}
@@ -386,7 +403,7 @@ Country of Residence: {research.country_of_residence}
 Destination: {research.destination_country}
 Purpose: {research.purpose_of_visit}
 Schengen Main Country: {schengen_main_country or 'N/A'}
-ETA Eligible: {eta_eligible}
+ETA Eligible: {eta_eligible}{profile_lines}
 Supplementary Research Notes:
 {chr(10).join(research.supplementary_notes[:10]) if research.supplementary_notes else 'None'}
 """

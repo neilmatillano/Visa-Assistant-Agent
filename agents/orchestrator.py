@@ -86,6 +86,16 @@ class VisaOrchestrator:
         reply, is_complete = self.intake_agent.chat(user_message)
 
         if is_complete:
+            # No-visa exemption path: skip research/analysis entirely
+            if self.intake_agent.no_visa_required:
+                display_reply = reply.split("```json")[0].strip()
+                if not display_reply:
+                    reason = self.intake_agent.no_visa_reason or {}
+                    display_reply = reason.get("message", "Good news — you do not need a visa for this trip!")
+                self.state.chat_history.append({"role": "assistant", "content": display_reply})
+                self.state.stage = PipelineStage.COMPLETE
+                return display_reply, self.state.stage
+
             self.state.profile = self.intake_agent.get_profile()
             # Strip the JSON block from the reply shown to the user
             display_reply = reply.split("```json")[0].strip()
@@ -119,6 +129,7 @@ class VisaOrchestrator:
         self.state.report = self.analysis_agent.analyse(
             self.state.research,
             schengen_main_country=self.state.profile.schengen_main_country,
+            profile=self.state.profile,
         )
 
         self.state.stage = PipelineStage.COMPLETE
